@@ -1,0 +1,4 @@
+project_id    = "your-gcp-project-id"
+region        = "asia-northeast1"
+app_name      = "sns-af"
+schedule_cron = "0 21 * * *"

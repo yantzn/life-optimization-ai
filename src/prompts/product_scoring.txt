@@ -1,0 +1,20 @@
+以下の商品情報を元に、共働きパパの「時間的価値」の観点からスコアリングしてください。
+絶対条件：JSON形式でのみ出力すること。
+
+商品名: {title}
+価格: {price}
+カテゴリ: {category}
+
+出力スキーマ:
+{
+  "time_saving_minutes_per_week": 0,
+  "payback_period_months": 0.0,
+  "persona_fit_score": 0.0,
+  "pain_strength_score": 0.0,
+  "differentiation_score": 0.0,
+  "overall_score": 0.0,
+  "decision": "accept|consider|reject",
+  "reason": "",
+  "target_scene": "",
+  "post_angle": ""
+}

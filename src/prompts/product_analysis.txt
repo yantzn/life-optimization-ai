@@ -1,0 +1,15 @@
+以下の商品情報について、より深い分析を行ってください。
+絶対条件：JSON形式でのみ出力すること。
+
+商品名: {title}
+カテゴリ: {category}
+
+出力スキーマ:
+{
+  "summary": "string",
+  "use_cases": ["string"],
+  "pain_points": ["string"],
+  "time_saving_minutes_per_week": 0,
+  "target_persona": "string",
+  "risk_notes": "string"
+}
