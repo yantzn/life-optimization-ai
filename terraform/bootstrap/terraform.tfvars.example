@@ -1,0 +1,6 @@
+project_id              = "affiliate-automation-platform"
+region                  = "asia-northeast1"
+tfstate_location        = "asia-northeast1"
+app_name                = "sns-af"
+github_repository       = "yantzn/life-optimization-ai"
+github_repository_owner = "yantzn"

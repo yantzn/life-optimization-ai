@@ -1,0 +1,22 @@
+[
+  {
+    "source": "manual",
+    "title": "食洗機対応の時短フライパンセット",
+    "price": 12800,
+    "category": "キッチン",
+    "image_url": "https://example.com/pan.jpg",
+    "affiliate_url": "https://example.com/lp/pan",
+    "rating": 4.4,
+    "review_count": 318
+  },
+  {
+    "source": "manual",
+    "title": "ロボット掃除機エントリーモデル",
+    "price": 39800,
+    "category": "スマート家電",
+    "image_url": "https://example.com/robot.jpg",
+    "affiliate_url": "https://example.com/lp/robot",
+    "rating": 4.2,
+    "review_count": 921
+  }
+]

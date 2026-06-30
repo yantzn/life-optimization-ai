@@ -11,11 +11,11 @@ terraform {
     }
   }
 
-  # NOTE: In production, uncomment and run `terraform init` to migrate state to GCS.
-  # backend "gcs" {
-  #   bucket = "YOUR-PROJECT-ID-tfstate"
-  #   prefix = "sns-af/infra"
-  # }
+  # GitHub Actionsでは -backend-config="bucket=..." でbootstrap済みのtfstate bucketを注入する。
+  # bucket名をコードへ固定しないことで、dev/prodなど複数projectへ展開しやすくする。
+  backend "gcs" {
+    prefix = "sns-af/infra"
+  }
 }
 
 provider "google" {

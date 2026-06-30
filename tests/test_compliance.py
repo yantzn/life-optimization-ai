@@ -1,43 +1,73 @@
-import pytest
 from src.services.compliance import ComplianceService
 
-def test_pr_tag_inserted_when_has_link():
-    text = "これは良い商品です。\nhttp://example.com"
-    formatted, is_rejected = ComplianceService.check_and_format_post(text, True)
-    assert not is_rejected
+
+def test_pr_tag_can_be_inserted_at_front_when_formatting():
+    formatted, rejected = ComplianceService.check_and_format_post("本文です\nhttps://example.com/lp", True)
+
+    assert not rejected
     assert formatted.startswith("【PR】")
 
-def test_pr_tag_not_inserted_when_no_link():
-    text = "今日は疲れました。"
-    formatted, is_rejected = ComplianceService.check_and_format_post(text, False)
-    assert not is_rejected
-    assert not formatted.startswith("【PR】")
 
-def test_trailing_pr_tag_replaced():
-    text = "これは良い商品です。\nhttp://example.com\n#PR"
-    formatted, is_rejected = ComplianceService.check_and_format_post(text, True)
-    assert not is_rejected
-    assert formatted.startswith("【PR】")
-    assert not formatted.endswith("#PR")
+def test_missing_front_pr_rejected_in_quality_check():
+    result = ComplianceService.check_post("本文です\nhttps://example.com/lp", has_affiliate_or_lp=True)
 
-def test_ng_words_replaced():
-    text = "これでシミが消えるよ！"
-    formatted, is_rejected = ComplianceService.check_and_format_post(text, False)
-    assert not is_rejected
-    assert "シミが消える" not in formatted
-    assert "シミの悩みをケアする" in formatted
+    assert result.status == "rejected"
+    assert result.rejection_reason == "missing_front_pr"
 
-def test_length_limit():
-    text = "あ" * 501
-    _, is_rejected = ComplianceService.check_and_format_post(text, False)
-    assert is_rejected
 
-def test_a8_link_rejected():
-    text = "詳細はこちら: http://px.a8.net/something"
-    _, is_rejected = ComplianceService.check_and_format_post(text, True)
-    assert is_rejected
+def test_internal_decision_value_is_deducted():
+    result = ComplianceService.check_post("【PR】判定はbuyです。これは便利です https://example.com", has_affiliate_or_lp=True)
 
-def test_multiple_links_rejected():
-    text = "リンク1: http://example.com リンク2: https://example.org"
-    _, is_rejected = ComplianceService.check_and_format_post(text, True)
-    assert is_rejected
+    assert result.quality_score <= 70
+    assert "内部判定値" in result.warnings[0]
+
+
+def test_duplicate_hook_is_deducted():
+    result = ComplianceService.check_post(
+        "【PR】夕飯後の片付けを少し軽くする話です https://example.com",
+        has_affiliate_or_lp=True,
+        hook="同じhook",
+        existing_hooks={"同じhook"},
+    )
+
+    assert result.quality_score <= 85
+    assert result.status == "queued"
+
+
+def test_rejects_over_500_chars():
+    result = ComplianceService.check_post("あ" * 501)
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "text_length_exceeds_500"
+
+
+def test_rejects_a8_direct_link():
+    result = ComplianceService.check_post("【PR】https://px.a8.net/example", has_affiliate_or_lp=True)
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "a8_direct_link_forbidden"
+
+
+def test_detects_regulated_expression():
+    result = ComplianceService.check_post("このサプリで免疫力アップします")
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "regulated_expression_detected"
+
+
+def test_limits_affiliate_url_to_one():
+    result = ComplianceService.check_post(
+        "【PR】リンク1 https://example.com/a リンク2 https://example.com/b",
+        has_affiliate_or_lp=True,
+    )
+
+    assert result.status == "rejected"
+    assert result.rejection_reason == "too_many_urls"
+
+
+def test_affiliate_smell_expression_is_deducted():
+    result = ComplianceService.check_post("【PR】大人気でおすすめです https://example.com", has_affiliate_or_lp=True)
+
+    assert result.status == "rejected"
+    assert result.quality_score <= 60
+    assert result.warnings

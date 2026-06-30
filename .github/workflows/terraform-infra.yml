@@ -1,0 +1,113 @@
+name: Terraform Infra
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/infra/**"
+      - ".github/workflows/terraform-infra.yml"
+  pull_request:
+    paths:
+      - "terraform/infra/**"
+      - ".github/workflows/terraform-infra.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_INPUT: false
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  TFSTATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+  APP_RUNTIME_SERVICE_ACCOUNT: ${{ vars.APP_RUNTIME_SERVICE_ACCOUNT }}
+  SCHEDULER_INVOKER_SERVICE_ACCOUNT: ${{ vars.SCHEDULER_INVOKER_SERVICE_ACCOUNT }}
+
+jobs:
+  terraform:
+    name: Terraform infra
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: terraform/infra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create plugin cache dir
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Validate required variables
+        run: |
+          set -euo pipefail
+          test -n "${GCP_PROJECT_ID}"
+          test -n "${GCP_REGION}"
+          test -n "${TFSTATE_BUCKET}"
+          test -n "${APP_RUNTIME_SERVICE_ACCOUNT}"
+          test -n "${SCHEDULER_INVOKER_SERVICE_ACCOUNT}"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: latest
+
+      - name: Verify gcloud project
+        run: |
+          set -euo pipefail
+          gcloud config set project "${GCP_PROJECT_ID}"
+          gcloud config get-value project
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: |
+          set -euo pipefail
+          terraform init -reconfigure \
+            -backend-config="bucket=${TFSTATE_BUCKET}"
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: |
+          set -euo pipefail
+          terraform plan \
+            -lock-timeout=5m \
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="region=${GCP_REGION}" \
+            -var="app_runtime_service_account_email=${APP_RUNTIME_SERVICE_ACCOUNT}" \
+            -var="scheduler_invoker_service_account_email=${SCHEDULER_INVOKER_SERVICE_ACCOUNT}" \
+            -out=tfplan
+
+      - name: Upload tfplan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-infra-plan
+          path: terraform/infra/tfplan
+          if-no-files-found: error
+
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          terraform apply -lock-timeout=5m -auto-approve tfplan

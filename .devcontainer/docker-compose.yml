@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - gcloud-config:/home/vscode/.config/gcloud
+      - terraform-cache:/home/vscode/.terraform.d/plugin-cache
+    working_dir: /workspace
+    command: >
+      /bin/sh -c
+      "sudo mkdir -p /home/vscode/.config/gcloud /home/vscode/.terraform.d/plugin-cache
+      && sudo chown -R vscode:vscode /home/vscode/.config/gcloud /home/vscode/.terraform.d
+      && while sleep 1000; do :; done"
+    environment:
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-affiliate-automation-platform-dev}
+      TF_PLUGIN_CACHE_DIR: /home/vscode/.terraform.d/plugin-cache
+      CLOUDSDK_CONFIG: /home/vscode/.config/gcloud
+
+volumes:
+  gcloud-config:
+  terraform-cache:

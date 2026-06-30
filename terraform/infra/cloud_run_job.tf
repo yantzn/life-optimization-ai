@@ -5,30 +5,39 @@ resource "google_cloud_run_v2_job" "app_job" {
 
   template {
     template {
-      service_account = google_service_account.app_sa.email
+      service_account = local.app_runtime_service_account_email
 
       containers {
         # Using a placeholder image for initial terraform apply.
         # Actual deployments will be done via CI/CD (GitHub Actions).
         image = "us-docker.pkg.dev/cloudrun/container/hello"
-        
+
         env {
           name  = "GCP_PROJECT_ID"
           value = var.project_id
         }
         env {
           name  = "DRY_RUN"
-          value = "true" # Default to true for MVP
+          # 初期デプロイは必ずtrue。本番投稿はSecret登録と手動dry-run確認後にfalseへ切り替える。
+          value = tostring(var.dry_run)
         }
         env {
           name  = "GEMINI_MODEL"
-          value = "gemini-2.0-flash"
+          value = var.gemini_model
         }
         env {
           name  = "DEFAULT_HOURLY_VALUE"
-          value = "2000"
+          value = tostring(var.default_hourly_value)
         }
-        
+        env {
+          name  = "TARGET_PLATFORM"
+          value = var.target_platform
+        }
+        env {
+          name  = "LOG_LEVEL"
+          value = var.log_level
+        }
+
         # Inject secrets from Secret Manager
         env {
           name = "GEMINI_API_KEY"
@@ -58,9 +67,10 @@ resource "google_cloud_run_v2_job" "app_job" {
           }
         }
 
-        # The command to execute when the job runs
-        command = ["python", "-m", "src.main"]
-        args    = ["--mode", "all"]
+        # Cloud Run JobではMVPパイプラインを一括実行する。
+        # schedule-posts/publish-due-posts導入後は、生成と投稿実行を別Jobに分ける想定。
+        command = ["python", "-m", "src.cli"]
+        args    = ["run-mvp", "--limit", tostring(var.mvp_limit)]
       }
     }
   }

@@ -1,22 +1,27 @@
-import pytest
-from src.services.roi_calculator import ROICalculator
+from src.services.roi_calculator import calculate_roi
 
-def test_calculate_buy():
-    res = ROICalculator.calculate(10000, 30)
-    assert res["payback_period_months"] == 2.5
-    assert res["decision"] == "buy"
 
-def test_calculate_consider():
-    res = ROICalculator.calculate(40000, 30)
-    assert res["payback_period_months"] == 10.0
-    assert res["decision"] == "consider"
+def test_calculate_roi_buy():
+    result = calculate_roi(product_price=10000, time_saving_minutes_per_week=120, hourly_value=2000)
 
-def test_calculate_skip():
-    res = ROICalculator.calculate(80000, 30)
-    assert res["payback_period_months"] == 20.0
-    assert res["decision"] == "skip"
+    assert result["monthly_time_saving_hours"] == 8.0
+    assert result["monthly_value"] == 16000
+    assert result["yearly_value"] == 192000
+    assert result["payback_period_months"] == 0.62
+    assert result["decision"] == "buy"
+    assert result["roi_score"] > 8
 
-def test_calculate_zero_time_saving():
-    res = ROICalculator.calculate(10000, 0)
-    assert res["payback_period_months"] is None
-    assert res["decision"] == "skip"
+
+def test_calculate_roi_consider():
+    result = calculate_roi(product_price=40000, time_saving_minutes_per_week=60, hourly_value=2000)
+
+    assert result["payback_period_months"] == 5.0
+    assert result["decision"] == "consider"
+
+
+def test_calculate_roi_skip_when_no_time_saving():
+    result = calculate_roi(product_price=10000, time_saving_minutes_per_week=0, hourly_value=2000)
+
+    assert result["payback_period_months"] is None
+    assert result["roi_score"] == 0.0
+    assert result["decision"] == "skip"
